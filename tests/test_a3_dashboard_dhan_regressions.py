@@ -87,7 +87,7 @@ class A3RegressionTests(unittest.TestCase):
         self.assertNotIn('asyncio.to_thread',area)
         for site in ('five_engine_chips(sym,display_timeframe="1m")',
                      'five_engine_chips(index_name,display_timeframe="1m")',
-                     'five_engine_chips(row["symbol"],display_timeframe="5m")'):
+                     'five_engine_chips(row["symbol"],display_timeframe="1m")'):
             self.assertIn(site,source)
         _,views=start({"scanner_live":False,"source":"Dhan"})
         chips=views["five_engine_chips"]("NIFTY")

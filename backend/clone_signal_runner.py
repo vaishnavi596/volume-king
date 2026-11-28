@@ -500,7 +500,12 @@ def _gate_row(n_eff, hits_eff, base=None):
     ok = bool(n_eff >= VOTE_MIN_N and rate is not None and rate >= VOTE_MIN_RATE
               and low is not None and low >= 50.0 and (edge is None or edge > 0))
     # B255: vote weight 0..1 from the measured Wilson lower bound (50 -> 0, 100 -> 1); unproven boxes weigh 0
-    weight = round(max(0.0, (low - 50.0) / 50.0), 2) if (ok and low is not None) else 0.0
+    # B258: stronger weight from the measured EDGE over the coin-flip baseline (10 points of edge = full weight);
+    # without a baseline fall back to the old Wilson-low scale. Unproven boxes still weigh 0.
+    if ok and edge is not None:
+        weight = round(min(1.0, max(0.0, edge / 10.0)), 2)
+    else:
+        weight = round(max(0.0, (low - 50.0) / 50.0), 2) if (ok and low is not None) else 0.0
     return {"n": n_eff, "hit_rate": rate, "wilson_low": low, "baseline": base, "edge": edge,
             "need_n": VOTE_MIN_N, "need_rate": VOTE_MIN_RATE, "eligible": ok, "weight": weight}
 

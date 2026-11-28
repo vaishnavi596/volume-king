@@ -3575,3 +3575,10 @@ Server redeploy needed for B248: gateway (change_pct) + runner (ledger) + v3_m_f
 - First load: a fresh login while closed now starts the Watchlist HIST load by itself (it used to wait until the Watchlist tab was opened).
 - Every Doctor (Master too) now carries server_overview (server file age, box_base, autoupdate, replay, which leans exist, vote gate with weights/horizons) so one report is enough.
 - Not done: bulk server history cache for first load (needs a design + screenshots), Watchlist engine on 1m, O oi_change_hist 0/100 check on live chain.
+
+## J69 — B258 build (28 Nov 2026): same boxes everywhere
+- Owner compared the same symbols on Dashboard/Scanner/Watchlist. NIFTY was identical on Dashboard and Scanner; the real differences were Super Five (still 5m, now 1m), paper centre shares (5m, now 1m), empty boxes without a reason.
+- Vote weight now from the measured edge over baseline (10 points of edge = full weight); unproven boxes still weigh 0.
+- O (OI change) is capped at 95/5; a seven-strike window is never certainty.
+- C/N/F boxes now say why they are empty (no 1m history / no direction cue / futures lean after open).
+- Not done: one shared engine function for the ranking scan (still 5m), per-box last-update labels, N direction for shares.

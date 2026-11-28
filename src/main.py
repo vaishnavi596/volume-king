@@ -2345,6 +2345,7 @@ def app_main(page:ft.Page):
                       and prefs.get("market_display_mode")!="LIVE_ONLY"):
                     candle_tf=(display_timeframe or ("1m" if sym in ("NIFTY","BANKNIFTY","SENSEX") else "5m"))
                     candle_history=shared_history(sym,candle_tf)
+                    label="C WAIT • "+candle_tf+" इतिहास नहीं"  # B258: reason instead of a bare WAIT
                     if candle_history.get("source")=="Dhan":
                         balance=completed_timeframe_candle_balance(candle_history,candle_tf,now=time.time())
                         if balance:
@@ -2354,6 +2355,8 @@ def app_main(page:ft.Page):
                     _fl=((((paper_hb_cache.get("signals") or {}).get("latest") or {}).get("fut_lean") or {}).get(sym) or {})
                     if type(_fl.get("bullish")) not in (int,float) and sym not in ("NIFTY","BANKNIFTY","SENSEX"):
                         label="F WAIT • अभी सिर्फ़ इंडेक्स पर"
+                    elif type(_fl.get("bullish")) not in (int,float):
+                        label="F WAIT • सर्वर फ्यूचर्स बाज़ार खुलने पर"  # B258
                     if type(_fl.get("bullish")) in (int,float):
                         label="F HIST B"+str(_fl["bullish"])+"/S"+str(_fl["bearish"])+(" • "+str(_fl["buildup"]).replace("_"," ") if _fl.get("buildup") else " • futures price+premium lean")+" • not voted"
                         color=GREEN if _fl["bullish"]>50 else RED if _fl["bullish"]<50 else GOLD
@@ -2362,7 +2365,7 @@ def app_main(page:ft.Page):
                         data=news_cache.get(sym) or {}
                     items=data.get("items") or []
                     valid_count=valid_news_context_count(data,now=time.time())
-                    if valid_count:label="N "+str(valid_count)+" news • WAIT"
+                    if valid_count:label="N "+str(valid_count)+" news • कोई दिशा-संकेत नहीं"  # B258: say why no B/S
                     # Owner choice 26 Nov: show headline phrase cues as HIST context.
                     # Experimental and unverified: displayed only, never counted in the
                     # combined vote or the 3-engine quorum.
@@ -2486,7 +2489,7 @@ def app_main(page:ft.Page):
                        and row.get("bias") in ("BULLISH","BEARISH")
                        else "NO LIVE SIGNAL" if historical
                        else "NO CLEAR SIGNAL" if row["bias"]=="WAIT" else row["bias"])
-            controls.append(ft.Container(content=ft.Column([txt(row["symbol"]+" • "+direction,16,color,True),ft.Row([txt("Last price " if disconnected_dhan else "LTP ",14,MUTED),txt(quote_price(row["symbol"]),16,GOLD,True),txt((" • Dhan feed off • NOT live" if quote_price(row["symbol"])!="—" else " unavailable • Dhan feed off") if disconnected_dhan else " • time unverified",14,MUTED)],spacing=0,wrap=True),five_engine_chips(row["symbol"],display_timeframe="5m"),canonical_live_final_note(row["symbol"],"5m"),scanner_historical_final_vote(row["symbol"],"5m"),note(oracle_assessment_notes(row["symbol"],"overview")[0]),strength_widget(row,row.get("symbol")),five_engine_summary(row["symbol"],display_timeframe="5m"),ft.ExpansionTile(title=note("Candle / source details"),controls=[note(status+" • "+when),note("Source: "+row.get("source","Unavailable")),note(row.get("reason",""))])],spacing=3),bgcolor=PANEL2,padding=8,border_radius=8,on_click=lambda e,sym=row["symbol"]:open_candidate_chart(sym)))
+            controls.append(ft.Container(content=ft.Column([txt(row["symbol"]+" • "+direction,16,color,True),ft.Row([txt("Last price " if disconnected_dhan else "LTP ",14,MUTED),txt(quote_price(row["symbol"]),16,GOLD,True),txt((" • Dhan feed off • NOT live" if quote_price(row["symbol"])!="—" else " unavailable • Dhan feed off") if disconnected_dhan else " • time unverified",14,MUTED)],spacing=0,wrap=True),five_engine_chips(row["symbol"],display_timeframe="1m"),canonical_live_final_note(row["symbol"],"1m"),scanner_historical_final_vote(row["symbol"],"1m"),note(oracle_assessment_notes(row["symbol"],"overview")[0]),strength_widget(row,row.get("symbol")),five_engine_summary(row["symbol"],display_timeframe="1m"),ft.ExpansionTile(title=note("Candle / source details"),controls=[note(status+" • "+when),note("Source: "+row.get("source","Unavailable")),note(row.get("reason",""))])],spacing=3),bgcolor=PANEL2,padding=8,border_radius=8,on_click=lambda e,sym=row["symbol"]:open_candidate_chart(sym)))
         controls.append(note("Historical conclusions are kept for reference. Freshness checks still gate new live signals."))
         controls.append(note(("Ranking updated "+format_pass_seconds(round(time.monotonic()-area_stamps["top5"]))+" ago")
                              if area_stamps.get("top5") else "Ranking age: not refreshed in this session yet"))
@@ -6666,7 +6669,7 @@ def app_main(page:ft.Page):
                 (" • "+str(item["side"])+" x"+str(item["quantity"]) if item["side"] else " • FLAT")+
                 " • Realized net paper P&L INR "+format(item["realized_net_pnl"],"+,.2f")))
         instrument=bot_custom.value if bot_symbol.value=="Custom" else bot_symbol.value
-        context=[five_engine_chips(instrument,display_timeframe=("1m" if instrument in ("NIFTY","BANKNIFTY","SENSEX") else "5m")),
+        context=[five_engine_chips(instrument,display_timeframe="1m"),
                  dashboard_mini_candles(instrument,shared_history(instrument) or {}),
                  note(oracle_assessment_notes(instrument,"overview")[0]),
                  note("Same candle/filter evidence as Scanner; unverified prices never trigger broker orders."),

@@ -467,7 +467,7 @@ class HistoricalVotingTests(unittest.TestCase):
         for call in ('scanner_historical_final_vote(index_name,"1m")',
                      'scanner_historical_final_vote(sym,"1m")',
                      'scanner_historical_final_vote(sym,"1m")',
-                     'scanner_historical_final_vote(row["symbol"],"5m")',
+                     'scanner_historical_final_vote(row["symbol"],"1m")',
                      'scanner_historical_final_vote()],spacing=5)))'):
             with self.subTest(call=call):
                 self.assertIn(call,source)

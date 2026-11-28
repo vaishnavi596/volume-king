@@ -86,7 +86,9 @@ def window_oi_change(metrics):
     pressure = bull + bear
     if total_oi <= 0 or pressure <= 0 or pressure < MIN_CHANGE_SHARE * total_oi:
         return None, "OI change too small to measure direction"
-    bullish = min(100, max(0, round(100 * bull / pressure)))
+    # B258: a window of only one-sided build-up used to read as an absolute 0/100; cap the display at 95/5
+    # because a seven-strike OI change is never certainty.
+    bullish = min(95, max(5, round(100 * bull / pressure)))
     bearish = 100 - bullish
     if bullish == bearish:
         return None, "OI change balanced"

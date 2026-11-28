@@ -52,7 +52,7 @@ class OptionOiFlowTests(unittest.TestCase):
     def test_unwinding_counts_for_opposite_side(self):
         comp, _ = build(chain(ce_delta=-600))  # call unwinding is bullish
         self.assertEqual(comp["bias"], "BULLISH")
-        self.assertEqual(comp["bullish"], 100)
+        self.assertEqual(comp["bullish"], 95)
 
     def test_component_is_accepted_by_option_adapter(self):
         comp, _ = build()
