@@ -1254,6 +1254,20 @@ def create_app(*, key_bytes=None, market_feed_factory=None, market_registry=None
             data = {"available": False, "reason": "NO_SERVER_SIGNAL_FILE"}
         return paper_json(data)
 
+    @app.get("/clone-v2/snapshot/boxes")
+    def snapshot_boxes(x_botking_key: Optional[str] = Header(default=None)):
+        """B261: the server box table (T/C/M/F/N/O for the indices and roster shares) in ONE read-only call."""
+        authorized(x_botking_key)
+        raw = read_private_text("BOTKING_BOXES_FILE",
+            "/home/opc/botking-clone-v2-private/boxes-latest.json", 262144)
+        try:
+            data = json.loads(raw)
+            if not isinstance(data, dict):
+                raise ValueError
+        except ValueError:
+            data = {"available": False, "reason": "NO_SERVER_BOX_TABLE"}
+        return paper_json(data)
+
     @app.get("/clone-v2/signals/journal")
     def signals_journal(x_botking_key: Optional[str] = Header(default=None)):
         authorized(x_botking_key)

@@ -32,6 +32,10 @@ except ImportError:   # older installs: features stay off
     futures_buildup = heavy_lean = constituents = None
 from v3_m_forward import m_lean, m_leans, m_context, resolve_prediction, min_move, wilson_low, strength_band, window_of  # noqa: E402
 try:
+    import box_table  # B261: server box table (needs the extra phone helper modules shipped with it)
+except ImportError:
+    box_table = None
+try:
     import v3_news_cue  # noqa: E402
 except ImportError:  # older server install: server headline cue stays off
     v3_news_cue = None
@@ -57,6 +61,11 @@ NEWS_EVERY_S = 600
 # B260: the 51 roster shares (same list as the phone); their F and N leans are rotated through a few per cycle.
 STOCK_ROSTER = ('ADANIENT', 'ADANIPORTS', 'APOLLOHOSP', 'ASIANPAINT', 'AXISBANK', 'BAJAJ-AUTO', 'BAJAJFINSV', 'BAJFINANCE', 'BEL', 'BHARTIARTL', 'BPCL', 'BRITANNIA', 'CIPLA', 'COALINDIA', 'DIVISLAB', 'DRREDDY', 'EICHERMOT', 'GRASIM', 'HCLTECH', 'HDFCBANK', 'HDFCLIFE', 'HEROMOTOCO', 'HINDALCO', 'HINDUNILVR', 'ICICIBANK', 'INDUSINDBK', 'INFY', 'ITC', 'JSWSTEEL', 'KOTAKBANK', 'LT', 'M&M', 'MARUTI', 'NESTLEIND', 'NTPC', 'ONGC', 'POWERGRID', 'RELIANCE', 'SBILIFE', 'SBIN', 'SHRIRAMFIN', 'SUNPHARMA', 'TATASTEEL', 'TCS', 'TECHM', 'TITAN', 'TMCV', 'TMPV', 'TRENT', 'ULTRACEMCO', 'WIPRO')
 STOCK_STATE = {"fut": {}, "news": {}, "cursor": 0}
+BOX_STATE = {"rows": {}, "cursor": 0, "oi": {}, "oi_cursor": 0}
+BOX_FILE = Path(os.environ.get("BOTKING_BOXES_OUT", str(OUT_FILE.parent / "boxes-latest.json")))
+BOX_OPEN_PER_CYCLE = 10
+BOX_CLOSED_PER_CYCLE = 18
+BOX_OI_PER_CYCLE = 2
 STOCK_FUT_PER_CYCLE = 6
 STOCK_NEWS_PER_CYCLE = 4
 
@@ -808,6 +817,64 @@ def stock_refresh(key, now, today_iso):
                 continue
 
 
+def box_refresh(key, now, today_iso, market_open, out):
+    """B261: keep a server box table (T/C/M from 1m candles + F/N/O leans) for the 3 indices and 51 shares.
+
+    Indices refresh every cycle; shares rotate (10 per cycle while open, 18 when closed). The table is a
+    snapshot file the phone can fetch in ONE call. Display context only, never a vote.
+    """
+    if box_table is None:
+        return None
+    lo = (datetime.fromtimestamp(now, IST).date() - timedelta(days=4)).isoformat()
+    n = len(STOCK_ROSTER)
+    per = BOX_OPEN_PER_CYCLE if market_open else BOX_CLOSED_PER_CYCLE
+    start = BOX_STATE["cursor"]
+    picks = list(SYMBOLS) + [STOCK_ROSTER[(start + k) % n] for k in range(min(per, n))]
+    for name in picks:
+        try:
+            resp = with_integrity(post("/clone-v2/market/candles", {
+                "symbol": name, "interval": 1, "from_date": lo, "to_date": today_iso}, key))
+            raw = resp.get("bars") or []
+            BOX_STATE["rows"][name] = box_table.build_row(raw, now)
+        except Exception:
+            continue   # one symbol failing never stops the table
+    BOX_STATE["cursor"] = (start + per) % n
+    for _ in range(BOX_OI_PER_CYCLE):   # share option-chain OI lean, rotating (indices come from out["oi_lean"])
+        name = STOCK_ROSTER[BOX_STATE["oi_cursor"] % n]
+        BOX_STATE["oi_cursor"] = (BOX_STATE["oi_cursor"] + 1) % n
+        try:
+            snap = oi_snapshot(key, name, today_iso, OI_EXPIRY_CACHE)
+            if snap and type(snap.get("bullish")) in (int, float):
+                BOX_STATE["oi"][name] = dict(snap, t=int(now))
+        except Exception:
+            continue
+    futs = dict(STOCK_STATE["fut"]); futs.update(out.get("fut_lean") or {})
+    news = dict(STOCK_STATE["news"]); news.update(out.get("news_cue") or {})
+    oi = dict(BOX_STATE["oi"]); oi.update(out.get("oi_lean") or {})
+    rows = {}
+    for name in list(SYMBOLS) + list(STOCK_ROSTER):
+        base = BOX_STATE["rows"].get(name)
+        row = dict(base) if base else {"t": int(now), "bars": 0}
+        if name in futs and type(futs[name].get("bullish")) in (int, float):
+            row["F"] = {"b": futs[name]["bullish"], "s": futs[name]["bearish"],
+                        "buildup": futs[name].get("buildup"), "day": futs[name].get("day")}
+        nw = news.get(name)
+        if isinstance(nw, dict):
+            if type(nw.get("bullish")) in (int, float):
+                row["N"] = {"b": nw["bullish"], "s": nw["bearish"], "n": nw.get("n")}
+            elif nw.get("n"):
+                row["N"] = {"n": nw.get("n"), "dir": None}
+        o = oi.get(name)
+        if isinstance(o, dict) and type(o.get("bullish")) in (int, float):
+            row["O"] = {"b": o["bullish"], "s": o["bearish"], "expiry": o.get("expiry"), "pcr": o.get("pcr")}
+        rows[name] = row
+    table = box_table.assemble_table(rows, now, market_open)
+    text = json.dumps(table, separators=(",", ":"))
+    if len(text.encode("utf-8")) < 250000:
+        atomic_write(BOX_FILE, text + "\n")
+    return {"rows": len(rows), "with_T": sum(1 for r in rows.values() if r.get("T"))}
+
+
 def main():
     key = SSK_FILE.read_bytes().strip().decode("ascii")
     once = "--once" in sys.argv
@@ -864,6 +931,11 @@ def main():
                         out[field] = merged
             except Exception:
                 pass  # share leans are best-effort
+            try:   # B261: server box table (one-call snapshot for the phone)
+                box_refresh(key, now, datetime.fromtimestamp(now, IST).date().isoformat(),
+                            bool(out.get("market_open")), out)
+            except Exception:
+                pass  # box table is best-effort
             atomic_write(OUT_FILE, cap_signal_size(out) + "\n")
             try:
                 append_journal(change_events(previous, out, now))

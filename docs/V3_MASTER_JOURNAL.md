@@ -3595,3 +3595,10 @@ Server redeploy needed for B248: gateway (change_pct) + runner (ledger) + v3_m_f
 - Futures contract list now includes roster-share futures (FUTSTK, nearest expiry); the gateway futures/candles route accepts roster underlyings. One forced contract-list refresh when the old file has indices only.
 - Phone: F label for shares says the server is filling it. Old app builds show the values automatically (they read fut_lean/news_cue by symbol).
 - Not done: O for shares on a fresh install still fills one chain at a time after the Watchlist HIST load (about 10-15 minutes).
+
+## J72 — Server box table (28 Nov 2026, server only, NO app build)
+- Owner: app takes 6-7 minutes to fill on a fresh install; wants data on the server and the phone updated in 2-10 s. Plan agreed in chat (list of 19 points); this is phase 1, server side only.
+- New backend/box_table.py computes T/C/M per symbol from 1m candles with the phone's own helpers (scanner_engine, quality_check, historical_regular_session_bars, five_engine candle balance); runner `box_refresh` keeps rows for the 3 indices (every cycle) and 51 shares (10 per cycle open, 18 closed) and overlays F, N and the share option-chain OI lean (2 chains per cycle). Written to boxes-latest.json (about 16 KB).
+- New read-only route GET /clone-v2/snapshot/boxes returns the table in ONE call. Installer ships the extra phone helper modules to the signal runner directory.
+- Server T uses the DEFAULT 10-filter set; the phone still computes with the owner's own filters. Phone does not read the table yet: that is the app change to discuss with the owner BEFORE any build (rule of 28 Nov: find problems, discuss, then build).
+- Open: server Dhan token renewal (botking-clone-web-renew renews 90 min before expiry, expiry tonight 23:24 IST) must be checked after 22:00 IST.
