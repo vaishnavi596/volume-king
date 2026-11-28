@@ -48,7 +48,7 @@ class Routes(unittest.TestCase):
         os.environ["BOTKING_CLONE_DEVICES_FILE"] = os.path.join(tempfile.mkdtemp(), "d.json")
         import importlib.util
         spec = importlib.util.spec_from_file_location('backend_gateway_b256', 'backend/clone_v2_gateway.py')
-        g = importlib.util.module_from_spec(spec); spec.loader.exec_module(g)
+        g = importlib.util.module_from_spec(spec); sys.modules[spec.name] = g; spec.loader.exec_module(g)
         app = g.create_app(key_bytes=MASTER.encode())
         c = TestClient(app)
         H = {"X-BotKing-Key": MASTER}
