@@ -9565,26 +9565,22 @@ console.log('BOT KING Lightweight Charts ready');
         # Active is a movable 18-slot list; unselected default/extra/OI
         # indicators return to the available pool immediately after removal.
         available_filters=[name for name in filter_names if name not in filter_selected]
-        filter_checklist.controls=[
-            ft.Container(content=ft.Column([
-                ft.Row([ft.Container(content=txt(name,13,WHITE,True),expand=True),
-                        ft.OutlinedButton("Remove",on_click=lambda e,n=name:remove_added_filter(n))],
-                       spacing=5),
-                note(filter_availability(name)),
-                filter_mode_control(name)
-            ],spacing=3),padding=8,bgcolor=PANEL2,border_radius=8)
-            for name in filter_selected]
+        def _tile(name,btn,extra=None):
+            return ft.Container(content=ft.Column([ft.Row([ft.Container(content=txt("● "+name,12,WHITE,True),expand=True),btn],spacing=0,
+                                                         vertical_alignment=ft.CrossAxisAlignment.CENTER)]+([extra] if extra else []),spacing=0),
+                                width=(348 if extra else 170),padding=ft.padding.only(left=8,top=0,bottom=0,right=0),bgcolor=PANEL2,border_radius=8)
+        filter_checklist.controls=[ft.Row([
+            _tile(name,ft.IconButton(icon=ft.Icons.CLOSE,icon_size=16,icon_color=GOLD,tooltip="Remove "+name,
+                                     on_click=lambda e,n=name:remove_added_filter(n)),
+                  filter_mode_control(name) if name=="EMA 9/21" else None)
+            for name in filter_selected],wrap=True,spacing=6,run_spacing=4)]
         if not filter_selected:
             filter_checklist.controls=[note("No active filters • choose from all supported filters below.")]
-        added_filter_list.controls=[
-            ft.Container(content=ft.Row([
-                ft.Container(content=ft.Column([
-                    txt(name,13,WHITE,True),note(filter_availability(name))
-                ],spacing=2),expand=True),
-                ft.OutlinedButton("Add",on_click=lambda e,n=name:add_filter_slot(n),
-                                  disabled=len(filter_selected)>=MAX_ACTIVE_FILTERS)
-            ],spacing=6),padding=8,bgcolor=PANEL2,border_radius=8)
-            for name in available_filters]
+        added_filter_list.controls=[ft.Row([
+            _tile(name,ft.IconButton(icon=ft.Icons.ADD,icon_size=18,icon_color=GREEN,tooltip="Add "+name,
+                                     on_click=lambda e,n=name:add_filter_slot(n),
+                                     disabled=len(filter_selected)>=MAX_ACTIVE_FILTERS))
+            for name in available_filters],wrap=True,spacing=6,run_spacing=4)] if available_filters else []
         if not available_filters:
             added_filter_list.controls=[note("All supported filters are already active.")]
         filter_choice.options=[ft.dropdown.Option(name) for name in available_filters]
@@ -9595,7 +9591,7 @@ console.log('BOT KING Lightweight Charts ready');
             note("Shared by Scanner, Watchlist, Super Five and selected-timeframe analysis. New installs have 17 active filters; the 18th can be added."),
             filter_coverage_panel(),
             section("ACTIVE ANALYSIS FILTERS • "+str(len(filter_selected))+"/"+str(MAX_ACTIVE_FILTERS),
-                ft.Column([note("All supported filter slots; "+str(MAX_ACTIVE_FILTERS-len(filter_selected))+" empty slot(s) available. Remove any active filter to free a slot."),
+                ft.Column([txt(str(len(filter_selected))+"/"+str(MAX_ACTIVE_FILTERS)+" active • खाली "+str(MAX_ACTIVE_FILTERS-len(filter_selected))+" • ✕ से हटाएँ • सब विश्लेषण-ओनली; सिर्फ़ EMA 9/21 चार्ट पर बनता है. All supported filter slots; remove any active filter to free a slot.",10,MUTED),
                            filter_checklist,ft.OutlinedButton("Restore default 17",on_click=reset_default_filters)],spacing=4)),
             section("AVAILABLE FILTERS • "+str(len(available_filters)),
                 ft.Column([added_filter_list,
