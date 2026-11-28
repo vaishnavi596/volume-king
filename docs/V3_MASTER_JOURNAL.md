@@ -3539,3 +3539,11 @@ Server redeploy needed for B248: gateway (change_pct) + runner (ledger) + v3_m_f
 - Phone: F box shows the build-up state; Doctor gets heavy_lean / heavy_morning.
 - Nothing here votes by itself: all new rows are gate/evidence; live (LIVE_VERIFIED) data still replaces HIST automatically when the market is open.
 - Server: the 02:15 IST updater fetches the two new modules (installer list updated) and runs replay with a 290 s limit.
+
+## J64 — B254 build (28 Nov 2026): audit fixes
+- BUG (mine, B252): the "no forecast past 15:30" rule blanked box M for every symbol all evening (TMCV showed "6 —"). Now the cut-off applies only to a live lean (last bar within 10 min of now); a finished session keeps its HIST lean.
+- Audit found dead UI: Chart Indicators tab had 7 switches the app itself called unsupported (removed; the 3 value switches stay, lines come from per-symbol filter chips); header bell was a plain icon (now opens the newest server signal-change events); Settings had two dummy sections (07 Alerts, 08 Backtest) and a stale "Options → Trading Center" pointer (replaced).
+- Dead code NOT removed on purpose: old phone-local paper centre (paper_trading_center, chart_paper_trade and their switches) is no longer rendered anywhere but many regression tests construct it; removal needs its own careful build.
+- Empty boxes now say why: O "चेन नहीं मिली (शायद F&O नहीं)", F "अभी सिर्फ़ इंडेक्स पर" (labels still start with WAIT). Doctor gets box_coverage (fixable vs not_applicable per symbol) and its chart-overlay claims were corrected.
+- Gateway cuts signals-latest.json at 65536 bytes (invalid JSON would drop every server lean): runner now caps the file at 60000 bytes, dropping replay/autoupdate/ledger first and listing them in "trimmed".
+- Not done: Doctor automatic repair for N/F/O coverage (diagnosis only), VIX/gap, OI S/R lines, pinch-zoom, native background service.

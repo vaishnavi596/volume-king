@@ -16,7 +16,7 @@ _WINDOW = {20: 60, 30: 60, 60: 90}
 _MIN = {20: 30, 30: 30, 60: 45}
 
 
-def m_lean(bars, horizon=HORIZON_MINUTES):
+def m_lean(bars, horizon=HORIZON_MINUTES, now=None):
     """Return {"bullish","bearish","lean","strength"} or None when evidence is thin.
 
     horizon: 20, 30 or 60 minutes (B249). 60 needs more bars (45+) so it appears later in the session."""
@@ -33,8 +33,8 @@ def m_lean(bars, horizon=HORIZON_MINUTES):
     clean = clean[-_WINDOW[horizon]:]
     if len(clean) < _MIN[horizon]:
         return None
-    if _past_close(bars, horizon):
-        return None   # B252: a forecast that runs past the 15:30 close has no meaning
+    if _past_close(bars, horizon, now):
+        return None   # B252: a LIVE forecast that runs past the 15:30 close has no meaning
     closes = [c for _, _, c in clean]
     n = len(closes)
     xs = list(range(n))
@@ -72,10 +72,16 @@ def _last_epoch(bars):
     return None
 
 
-def _past_close(bars, horizon):
-    """True when last bar time + horizon is beyond the 15:30 IST close (only for real epoch stamps)."""
+def _past_close(bars, horizon, now=None):
+    """True when last bar time + horizon is beyond the 15:30 IST close.
+
+    Only for a LIVE lean (last bar within 10 minutes of `now`): after the close the HIST lean of the finished
+    session stays available as context (B254 fix: B252 wrongly blanked box M all evening)."""
     t = _last_epoch(bars)
     if t is None:
+        return False
+    import time as _time
+    if abs((now if now is not None else _time.time()) - t) > 600:
         return False
     from datetime import datetime, timezone, timedelta
     d = datetime.fromtimestamp(t, timezone(timedelta(hours=5, minutes=30)))

@@ -85,3 +85,15 @@ class ReplayAndGate(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class SignalSizeGuard(unittest.TestCase):
+    def test_signal_file_is_capped_below_gateway_limit(self):
+        import json
+        big = {"market_open": True, "symbols": {}, "replay": {"x": "y" * 70000}, "m_ledger": {"a": 1}}
+        text = rn.cap_signal_size(big)
+        self.assertLess(len(text.encode()), 60000)
+        d = json.loads(text)
+        self.assertIn("replay", d["trimmed"]); self.assertIn("m_ledger", d)
+        small = rn.cap_signal_size({"a": 1})
+        self.assertNotIn("trimmed", json.loads(small))

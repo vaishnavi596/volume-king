@@ -114,6 +114,21 @@ def evaluate(symbol, frame, response, quote_item, now):
     return row
 
 
+SIGNAL_MAX_BYTES = 60000   # gateway cuts signals-latest.json at 65536 bytes (invalid JSON -> every server lean lost)
+
+
+def cap_signal_size(out, limit=SIGNAL_MAX_BYTES):
+    """JSON text of `out` guaranteed under `limit` bytes: heaviest informational parts are dropped first."""
+    text = json.dumps(out)
+    for key in ("replay", "autoupdate", "m_ledger", "m_horizons"):
+        if len(text.encode("utf-8")) <= limit:
+            break
+        out = {k: v for k, v in out.items() if k != key}
+        out["trimmed"] = sorted(set(out.get("trimmed", [])) | {key})
+        text = json.dumps(out)
+    return text
+
+
 def atomic_write(path, text):
     fd, tmp = tempfile.mkstemp(prefix=".signals-", dir=str(path.parent))
     try:
@@ -734,7 +749,7 @@ def main():
                     out["replay"] = json.loads(rp.read_text(encoding="utf-8"))
             except Exception:
                 pass  # replay summary is informational only
-            atomic_write(OUT_FILE, json.dumps(out) + "\n")
+            atomic_write(OUT_FILE, cap_signal_size(out) + "\n")
             try:
                 append_journal(change_events(previous, out, now))
             except Exception:

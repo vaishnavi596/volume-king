@@ -1024,6 +1024,22 @@ def app_main(page:ft.Page):
     def close_help(dialog):
         if hasattr(page,"close"):page.close(dialog)
         else:dialog.open=False;page.update()
+    def show_signal_bell():
+        """B254: the bell lists the newest server-recorded signal changes (no push service needed)."""
+        sig_=paper_hb_cache.get("signals") or {}
+        evs=[e for e in sig_.get("events",[]) if isinstance(e,dict)][-20:]
+        rows=[]
+        for e in reversed(evs):
+            try:when=datetime.fromtimestamp(int(e.get("t")),timezone(timedelta(hours=5,minutes=30))).strftime("%d %b %H:%M")
+            except Exception:when="?"
+            rows.append(note(when+" IST • "+str(e.get("symbol"))+" "+str(e.get("frame"))+" • "+str(e.get("from") or "—")+" → "+str(e.get("to"))+
+                             (" • B"+str(e.get("bullish"))+"/S"+str(e.get("bearish")) if e.get("bullish") is not None else "")))
+        if not rows:
+            rows=[note("अभी कोई बदलाव दर्ज नहीं • सर्वर बाज़ार खुलने पर हर बार बदलाव यहाँ जोड़ता है" if sig_ else "सर्वर से कनेक्ट नहीं • Settings में SSK जोड़ें")]
+        dialog=ft.AlertDialog(title=txt("🔔 सिग्नल बदलाव",16,GOLD,True),content=ft.Column(rows,spacing=3,scroll=ft.ScrollMode.AUTO,height=320),
+                              actions=[ft.TextButton("बंद करें",on_click=lambda e:close_help(dialog))])
+        if hasattr(page,"open"):page.open(dialog)
+        else:page.dialog=dialog;dialog.open=True;page.update()
     def section(title,child):
         header=ft.Row([ft.Container(content=txt(title,13,GOLD,True),expand=True),ft.IconButton(icon=ft.Icons.INFO_OUTLINE,icon_color=MUTED,tooltip="आसान जानकारी और वर्तमान स्थिति",on_click=lambda e:show_help(title))])
         return card(header,child)
@@ -2307,6 +2323,11 @@ def app_main(page:ft.Page):
                         label="O HIST "+position["position"].replace("_"," ")+" • WAIT"
                     elif prefs.get("market_display_mode")!="LIVE_ONLY":
                         label="O WAIT"
+                        try:   # B254: say WHY it is empty for a stock whose option chain never loaded
+                            if sym not in ("NIFTY","BANKNIFTY","SENSEX") and roster_chain_age(sym)>=1e8:
+                                label="O WAIT • चेन नहीं मिली (शायद F&O नहीं)"
+                        except Exception as exc:
+                            log_error("o_reason",exc)
                 elif (name=="candle" and prefs.get("source")=="Dhan"
                       and prefs.get("market_display_mode")!="LIVE_ONLY"):
                     candle_tf=(display_timeframe or ("1m" if sym in ("NIFTY","BANKNIFTY","SENSEX") else "5m"))
@@ -2318,6 +2339,8 @@ def app_main(page:ft.Page):
                                    str(balance["bearish"])+" • NOT live")
                 elif name=="futures" and prefs.get("market_display_mode")!="LIVE_ONLY":
                     _fl=((((paper_hb_cache.get("signals") or {}).get("latest") or {}).get("fut_lean") or {}).get(sym) or {})
+                    if type(_fl.get("bullish")) not in (int,float) and sym not in ("NIFTY","BANKNIFTY","SENSEX"):
+                        label="F WAIT • अभी सिर्फ़ इंडेक्स पर"
                     if type(_fl.get("bullish")) in (int,float):
                         label="F HIST B"+str(_fl["bullish"])+"/S"+str(_fl["bearish"])+(" • "+str(_fl["buildup"]).replace("_"," ") if _fl.get("buildup") else " • futures price+premium lean")+" • not voted"
                         color=GREEN if _fl["bullish"]>50 else RED if _fl["bullish"]<50 else GOLD
@@ -4453,10 +4476,11 @@ def app_main(page:ft.Page):
             ])))
             content.extend([ft.Row([chart_style_picker,ft.ElevatedButton("Set chart type",on_click=chart_style_apply)]),section("Candlestick Chart",chart_candles()),chart_filter_panel(symbol.value,(chart_snapshot(symbol.value).get("bars") or [])),section("Price Trend",ft.Container(content=tiny_chart(symbol.value,chart_snapshot(symbol.value)),height=120)),ft.Row([ft.TextButton("Indicators",on_click=lambda e:choose_chart_tab("Indicators")),ft.TextButton("Drawing",on_click=lambda e:choose_chart_tab("Drawing"))])])
         elif chart_tab[0]=="Indicators":
-            selected=[n for n,c in [("EMA20/50",ema),("EMA200",ema200),("VWAP",vwap),("RSI",rsi),("MACD",macd),("Volume",volume),("SMA50",sma50),("Bollinger",bollinger),("ATR14",atr),("Supertrend",supertrend)] if c.value]
-            indicator_rows=[ema,ema200,sma50,bollinger,vwap,rsi,macd,volume,atr,supertrend,
+            selected=[n for n,c in [("EMA20/50",ema),("RSI",rsi),("ATR14",atr)] if c.value]
+            indicator_rows=[ema,rsi,atr,
                             ft.ElevatedButton("Save indicators",on_click=lambda e:persist_chart_settings(e)),
-                            note("Selected: "+(", ".join(selected) if selected else "None"))]
+                            note("Selected: "+(", ".join(selected) if selected else "None")),
+                            note("VWAP, EMA 9/21, SMA 5/20, Supertrend और Pivot की रेखा Chart टैब के फ़िल्टर-चिप से लगती है (हर सिंबल की अलग)।")]
             snapshot=chart_snapshot(symbol.value)
             expected={"Dhan":"Dhan","Broker API":"Angel One","Yahoo Finance":"Yahoo Finance"}.get(prefs.get("source"))
             if snapshot.get("source")!=expected:
@@ -4474,11 +4498,7 @@ def app_main(page:ft.Page):
                         indicator_rows.append(note("RSI14: "+format(result["rsi14"],".2f")))
                     if atr.value:
                         indicator_rows.append(note("ATR14: "+format(result["atr14"],",.2f")))
-            unsupported=[n for n,c in [("EMA200",ema200),("SMA50",sma50),("Bollinger",bollinger),
-                                         ("VWAP",vwap),("MACD",macd),("Volume overlay",volume),
-                                         ("Supertrend",supertrend)] if c.value]
-            if unsupported:
-                indicator_rows.append(note("Not calculated/displayed on this chart: "+", ".join(unsupported)))
+            indicator_rows.append(note("Not calculated/displayed on this chart: EMA200, SMA50, Bollinger, MACD, Volume overlay (values only for EMA20/50, RSI, ATR here; lines for the others come from the filter chips)."))
             indicator_rows.append(note("Indicator overlays are not drawn on the candlestick chart yet."))
             content.append(section("Indicators • Toggle On / Off",ft.Column(indicator_rows,spacing=5)))
         elif chart_tab[0]=="Drawing":
@@ -7421,8 +7441,9 @@ def app_main(page:ft.Page):
                         "shared_scanner_filter_count":len(active_analysis_filters()),
                         "chart_webview_supported":bool(embedded_lightweight_supported),
                         "chart_indicator_overlays_supported":True,
-                        "chart_overlay_detail":{"EMA 9/21":"PLOTTED_ON_NATIVE_CHART","RSI 14":"VALUE_NOTE_ONLY",
-                            "MACD":"VALUE_NOTE_ONLY","Supertrend":"STATUS_NOTE_ONLY_NO_OVERLAY"},
+                        "chart_overlay_detail":{"EMA 9/21":"PLOTTED_ON_NATIVE_CHART","SMA 5/20":"PLOTTED_ON_NATIVE_CHART","VWAP":"PLOTTED_ON_NATIVE_CHART",
+                            "Supertrend":"PLOTTED_ON_NATIVE_CHART","Pivot Points":"PLOTTED_ON_NATIVE_CHART",
+                            "RSI 14":"VERDICT_BADGE_ONLY","MACD":"VERDICT_BADGE_ONLY"},
                         "chart_last_load_busy":bool(chart_load_busy[0]),
                         "chart_uses_shared_cached_history_without_provider_on_open":True,
                         "physical_flutter_paint_measured":False},
@@ -7881,6 +7902,33 @@ def app_main(page:ft.Page):
                         "units_per_lot":tk_unit.value,"lot_source":tk.get("lot_from"),
                         "lot_known_for_symbol":str(chain_symbol.value).upper() in (_srv.get("lot_sizes") or {}),
                         "paper_fill":"SERVER_PAPER (server LTP entry, market hours only)","orders_sent":0}
+                    try:   # B254: WHY is a box empty, per symbol - fixable vs not applicable
+                        from v3_m_forward import m_lean as _mlean
+                        _cov={"fixable":{},"not_applicable":{}}
+                        _idx=("NIFTY","BANKNIFTY","SENSEX")
+                        for _s in list(all_watch_symbols())[:60]:
+                            _fix=[];_na=[]
+                            _h=shared_history(_s,"1m") or {}
+                            if not (_h.get("source")=="Dhan" and len(_h.get("bars") or [])>=30):_fix.append("M: 1m कैंडल नहीं (<30)")
+                            elif not _mlean(_h.get("bars"),30):_fix.append("M: 1m कैंडल हैं पर रुख नहीं बना")
+                            if _s not in _idx:
+                                _na.append("F: सर्वर अभी सिर्फ़ इंडेक्स का फ़्यूचर्स रुख देता है")
+                                if roster_chain_age(_s)>=1e8:_na.append("O: चेन नहीं मिली (शायद F&O नहीं)")
+                            else:
+                                if roster_chain_age(_s)>=1e8:_fix.append("O: चेन लोड नहीं")
+                            with news_lock:
+                                _nd=news_cache.get(_s) or {}
+                            if not valid_news_context_count(_nd,now=time.time()):
+                                _srvn=(((_srv.get("news_cue") or {}).get(_s)) or {})
+                                if type(_srvn.get("bullish")) not in (int,float):_fix.append("N: हेडलाइन नहीं मिली")
+                            if _fix:_cov["fixable"][_s]=_fix
+                            if _na:_cov["not_applicable"][_s]=_na
+                        data["box_coverage"]={"code":"BK-DOC-BOXCOV-001","fixable_count":len(_cov["fixable"]),
+                            "not_applicable_count":len(_cov["not_applicable"]),"fixable":dict(list(_cov["fixable"].items())[:20]),
+                            "not_applicable":dict(list(_cov["not_applicable"].items())[:8]),
+                            "scope":"report only; fixable = app/data fetch can fill it, not_applicable = Dhan has no such data for the symbol"}
+                    except Exception as exc:
+                        log_error("box_coverage",exc)
                     data["m_context_server"]={"code":"BK-DOC-MCTX-001","symbols":{k:(v.get("context") or {}) for k,v in (_srv.get("m_lean") or {}).items()},
                         "window_groups":(_srv.get("m_ledger") or {}).get("groups"),"oi_lean":_srv.get("oi_lean"),"vote_gate":_srv.get("vote_gate"),"news_cue":_srv.get("news_cue"),"fut_lean":_srv.get("fut_lean"),"heavy_lean":_srv.get("heavy_lean"),"heavy_morning":(_srv.get("m_ledger") or {}).get("heavy_morning"),"fut_morning":(_srv.get("m_ledger") or {}).get("fut_morning"),"news_morning":(_srv.get("m_ledger") or {}).get("news_morning"),"oi_morning":(_srv.get("m_ledger") or {}).get("oi_morning"),"paper_window_stats":paper_hb_cache.get("window_stats")}
                     data["m_horizons_server"]={"code":"BK-DOC-MHZ-001","symbols":sorted((_srv.get("m_horizons") or {}).keys()),
@@ -8234,13 +8282,12 @@ def app_main(page:ft.Page):
             ft.OutlinedButton("Check Futures Context (read-only)",on_click=fetch_futures_context_tap),
             futures_context_status,
             note("Requires verified Dhan Futures master; mapping/quote context cannot create an F vote.")],spacing=4)))
-        content.append(section("REAL TRADING • DISABLED",note("Live broker orders OFF. Paper SL / Target and execution controls are in Options → Trading Center.")))
+        content.append(section("REAL TRADING • DISABLED",note("Live broker orders OFF. Paper SL / Target और ऑर्डर टिकट Options पेज के अंत में हैं (सर्वर पेपर)।")))
         content.extend([
             section("BACKUP / RESTORE",ft.Column([backup_text,ft.Row([ft.TextButton("Prepare backup",on_click=export_backup),ft.TextButton("Copy backup",on_click=copy_backup)],wrap=True),restore_confirm,ft.OutlinedButton("Restore normal settings",on_click=import_backup),backup_status],spacing=6)),
             section("SETTING CHANGE HISTORY",ft.Column([note(display_setting_time(item["time"])+" • "+item["key"]+": "+str(item["before"])+" → "+str(item["after"])) for item in reversed(prefs.get("setting_changes",[])[-8:])]+[ft.OutlinedButton("Undo last setting change",on_click=undo_setting)])),
             section("06  SIGNAL FILTER",ft.Column([note("Minimum directional vote agreement — not success probability"),conf])),
-            section("07  ALERTS • NOT CONNECTED",note("Notifications are unavailable until an alert delivery service is connected.")),
-            section("08  BACKTEST • NOT CONNECTED",note("No backtest report exists in this build. Results must be validated before relying on strategies.")),
+            note("अलर्ट: Home की 🔔 घंटी सर्वर के सिग्नल-बदलाव दिखाती है • पुश नोटिफ़िकेशन अभी नहीं • बैकटेस्ट का काम पिछले दिनों का replay (Doctor में) करता है"),
 
             note("Live broker orders OFF")
         ])
@@ -10547,7 +10594,7 @@ console.log('BOT KING Lightweight Charts ready');
             ft.Icon(ft.Icons.EMOJI_EVENTS,color=GOLD,size=24),
             ft.Row([txt("BOT KING",18,GOLD,True),txt("v"+str(APP_VERSION),14,MUTED)],spacing=8,wrap=True),
             ft.Container(expand=True),
-            ft.Icon(ft.Icons.NOTIFICATIONS_NONE,color=GOLD,size=24)
+            ft.IconButton(icon=ft.Icons.NOTIFICATIONS_NONE,icon_color=GOLD,icon_size=24,tooltip="सिग्नल बदलाव (सर्वर)",on_click=lambda e:show_signal_bell())
         ],spacing=8,vertical_alignment=ft.CrossAxisAlignment.CENTER),
         padding=ft.padding.only(left=12,right=12,top=8,bottom=5),bgcolor=BG)
     app_shell=ft.Column([

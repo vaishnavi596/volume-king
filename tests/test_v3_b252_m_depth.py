@@ -45,12 +45,14 @@ class Regime(unittest.TestCase):
         self.assertEqual(b["regime"], "SIDEWAYS")
         self.assertLess(b["strength"], a["strength"])
 
-    def test_no_forecast_past_the_close(self):
-        late = bars_from([100 + 0.3 * i for i in range(70)], start=(14, 40))   # last bar ~15:50 -> beyond 15:30 anyway
-        early = bars_from([100 + 0.3 * i for i in range(70)], start=(10, 0))
-        self.assertIsNone(m.m_lean(bars_from([100 + 0.3 * i for i in range(70)], start=(14, 0)), 30))   # ends 15:10 + 30 > 15:30
-        self.assertIsNotNone(m.m_lean(early, 30))
-        self.assertIsNone(m.m_lean(late, 20))
+    def test_live_forecast_is_cut_before_close_but_finished_session_keeps_hist(self):
+        b = bars_from([100 + 0.3 * i for i in range(70)], start=(14, 0))        # last bar ~15:09
+        live_now = b[-1][0] + 60
+        self.assertIsNone(m.m_lean(b, 30, now=live_now))                         # live: 15:09 + 30 min > 15:30
+        self.assertIsNotNone(m.m_lean(b, 20, now=live_now))                      # 15:09 + 20 = 15:29 is fine
+        self.assertIsNotNone(m.m_lean(b, 30, now=live_now + 6 * 3600))           # evening: HIST of the finished session stays
+        full = bars_from([100 + 0.2 * i for i in range(375)])                    # whole closed session
+        self.assertIsNotNone(m.m_lean(full, 30, now=full[-1][0] + 4 * 3600))
 
 
 class OrbAndPrevClose(unittest.TestCase):
