@@ -1105,10 +1105,25 @@ def app_main(page:ft.Page):
             options,_reason=oi_change_component(
                 chain,quote=quotes.get(sym) or {},symbol=sym,timeframe=tf,
                 generation=provider_generation[0],observed_at=chain["observed_at"],now=now)
+        futures_component=matching_futures_context_for_symbol(sym)
+        try:
+            # Owner-approved 28 Nov: the server futures lean votes only while its measured hit-rate gate passes.
+            _lat=((paper_hb_cache.get("signals") or {}).get("latest") or {})
+            _gate=(_lat.get("vote_gate") or {}).get("F") or {}
+            _fl=(_lat.get("fut_lean") or {}).get(sym) or {}
+            if (_gate.get("eligible") is True and type(_fl.get("bullish")) is int and type(_fl.get("t")) in (int,float)
+                    and isinstance(_fl.get("expiry"),str) and 0<=_fl["bullish"]<=100):
+                futures_component={"source":"Dhan","verified":True,"direction_basis":"ledger_gated_lean",
+                    "symbol":sym,"underlying":sym,"timeframe":tf,"generation":provider_generation[0],
+                    "expiry":_fl["expiry"],"contract":sym+" FUT "+_fl["expiry"],
+                    "bullish":_fl["bullish"],"bearish":100-_fl["bullish"],"timestamp":_fl["t"],
+                    "mapping_verified":True,"live_verified":True,"historical":False}
+        except Exception as exc:
+            log_error("futures_gated",exc)
         return contextual_five_engine.publish_directional_components(
             symbol=sym,timeframe=tf,generation=provider_generation[0],now=now,
             options=options,
-            futures=matching_futures_context_for_symbol(sym))
+            futures=futures_component)
 
     def live_voting_gate_report(sym,tf):
         from five_engine import live_gate_diagnostic
@@ -7801,7 +7816,7 @@ def app_main(page:ft.Page):
                         "lot_known_for_symbol":str(chain_symbol.value).upper() in (_srv.get("lot_sizes") or {}),
                         "paper_fill":"SERVER_PAPER (server LTP entry, market hours only)","orders_sent":0}
                     data["m_context_server"]={"code":"BK-DOC-MCTX-001","symbols":{k:(v.get("context") or {}) for k,v in (_srv.get("m_lean") or {}).items()},
-                        "window_groups":(_srv.get("m_ledger") or {}).get("groups"),"oi_lean":_srv.get("oi_lean"),"news_cue":_srv.get("news_cue"),"fut_lean":_srv.get("fut_lean"),"fut_morning":(_srv.get("m_ledger") or {}).get("fut_morning"),"news_morning":(_srv.get("m_ledger") or {}).get("news_morning"),"oi_morning":(_srv.get("m_ledger") or {}).get("oi_morning"),"paper_window_stats":paper_hb_cache.get("window_stats")}
+                        "window_groups":(_srv.get("m_ledger") or {}).get("groups"),"oi_lean":_srv.get("oi_lean"),"vote_gate":_srv.get("vote_gate"),"news_cue":_srv.get("news_cue"),"fut_lean":_srv.get("fut_lean"),"fut_morning":(_srv.get("m_ledger") or {}).get("fut_morning"),"news_morning":(_srv.get("m_ledger") or {}).get("news_morning"),"oi_morning":(_srv.get("m_ledger") or {}).get("oi_morning"),"paper_window_stats":paper_hb_cache.get("window_stats")}
                     data["m_horizons_server"]={"code":"BK-DOC-MHZ-001","symbols":sorted((_srv.get("m_horizons") or {}).keys()),
                         "ledger":(_srv.get("m_ledger") or {}).get("scored")}
                     _au=_srv.get("autoupdate") or {}

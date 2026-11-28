@@ -180,3 +180,47 @@ class FuturesLean(unittest.TestCase):
         self.assertIn("authorized(x_botking_key)", body)
         self.assertIn('"instrument": "FUTIDX"', body)
         self.assertNotIn("order", body.lower().replace("orders", "").replace("live_orders_enabled", ""))
+
+
+class VoteGate(unittest.TestCase):
+    def test_gate_needs_samples_and_rate(self):
+        led = {"stats": {"NIFTY@30": {"n": 20, "hits": 13}}, "oi_stats": {"NIFTY": {"n": 40, "hits": 24}},
+               "news_stats": {"NIFTY": {"n": 40, "hits": 18}}, "fut_stats": {}}
+        g = rn.vote_gate(led)
+        self.assertFalse(g["M"]["eligible"])                 # n=20 < 30
+        self.assertTrue(g["O"]["eligible"])                  # 40 samples, 60%
+        self.assertFalse(g["N"]["eligible"])                 # 45% < 55%
+        self.assertFalse(g["F"]["eligible"]); self.assertIsNone(g["F"]["hit_rate"])
+        rep = {"m_hit": {"30m": {"n": 600, "hit_rate": 60.0}}}   # 600/6 = 100 effective samples
+        g2 = rn.vote_gate(led, rep)
+        self.assertTrue(g2["M"]["eligible"])
+        self.assertEqual(g2["M"]["n"], 120)
+
+
+class GatedFuturesVote(unittest.TestCase):
+    def comp(self, **kw):
+        base = {"source": "Dhan", "verified": True, "direction_basis": "ledger_gated_lean", "symbol": "NIFTY",
+                "underlying": "NIFTY", "timeframe": "1m", "generation": 3, "expiry": "2026-12-29",
+                "contract": "NIFTY FUT 2026-12-29", "bullish": 62, "bearish": 38, "timestamp": 1000.0,
+                "mapping_verified": True, "live_verified": True, "historical": False}
+        base.update(kw)
+        return base
+
+    def test_adapter_accepts_gated_basis_only(self):
+        import five_engine as fe
+        ok = fe.futures_from_component(self.comp())
+        self.assertTrue(ok.eligible); self.assertEqual((ok.bullish, ok.bearish), (62, 38))
+        self.assertFalse(fe.futures_from_component(self.comp(direction_basis="inferred_buildup")).eligible)
+        self.assertFalse(fe.futures_from_component(self.comp(historical=True)).eligible)
+
+    def test_publish_freshness_window(self):
+        import five_engine as fe
+        eng = fe.compose_snapshot()
+        self.assertEqual(fe.LEDGER_GATED_MAX_AGE_SECONDS, 290)
+        src = open("src/five_engine.py", encoding="utf-8").read()
+        self.assertIn('LEDGER_GATED_MAX_AGE_SECONDS if component.get("direction_basis")=="ledger_gated_lean" else 90', src)
+
+    def test_phone_builds_gated_component_only_when_eligible(self):
+        src = open("src/main.py", encoding="utf-8").read()
+        self.assertIn('_gate.get("eligible") is True', src)
+        self.assertIn('"direction_basis":"ledger_gated_lean"', src)

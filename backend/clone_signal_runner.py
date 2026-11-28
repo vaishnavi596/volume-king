@@ -381,6 +381,41 @@ def ledger_step(ledger, out, now):
     return ledger
 
 
+VOTE_MIN_N = 30          # scored samples a box needs before it may vote
+VOTE_MIN_RATE = 55.0     # measured hit-rate (%) a box needs before it may vote
+
+
+def vote_gate(ledger, replay=None):
+    """Pure evidence gate per box: eligible only after enough scored samples AND a hit-rate above the bar.
+
+    M uses the 30-minute ledger rows plus replay (replay windows overlap, so its count is divided by 6).
+    O/N/F use the daily morning-lean ledgers. Eligibility is computed here; it never changes by itself
+    what the phone shows as LIVE until the phone-side vote wiring reads it.
+    """
+    def agg(stats, match=None):
+        n = hits = 0
+        for k, v in (stats or {}).items():
+            if match is None or match(k):
+                n += int(v.get("n", 0)); hits += int(v.get("hits", 0))
+        return n, hits
+    boxes = {}
+    n, hits = agg(ledger.get("stats"), lambda k: k.endswith("@30"))
+    rep = ((replay or {}).get("m_hit") or {}).get("30m") or {}
+    if type(rep.get("n")) is int and type(rep.get("hit_rate")) in (int, float) and rep["n"] > 0:
+        rn_ = rep["n"] // 6
+        n += rn_; hits += round(rn_ * rep["hit_rate"] / 100)
+    boxes["M"] = (n, hits)
+    boxes["O"] = agg(ledger.get("oi_stats"))
+    boxes["N"] = agg(ledger.get("news_stats"))
+    boxes["F"] = agg(ledger.get("fut_stats"))
+    out = {}
+    for box, (n, hits) in boxes.items():
+        rate = round(100 * hits / n, 1) if n else None
+        out[box] = {"n": n, "hit_rate": rate, "need_n": VOTE_MIN_N, "need_rate": VOTE_MIN_RATE,
+                    "eligible": bool(n >= VOTE_MIN_N and rate is not None and rate >= VOTE_MIN_RATE)}
+    return out
+
+
 def ledger_summary(ledger):
     rows = {}
     for symbol, st in (ledger.get("stats") or {}).items():
@@ -557,6 +592,11 @@ def main():
                 ledger = oi_morning_step(ledger, out, now, "fut_lean", "fut_morning", "fut_stats")
                 atomic_write(LEDGER_FILE, json.dumps(ledger) + "\n")
                 out["m_ledger"] = ledger_summary(ledger)
+                try:
+                    rp = Path(os.environ.get("BOTKING_REPLAY_OUT", str(OUT_FILE.parent / "replay-latest.json")))
+                    out["vote_gate"] = vote_gate(ledger, json.loads(rp.read_text(encoding="utf-8")) if rp.exists() else None)
+                except Exception:
+                    pass  # gate is informational until the phone wiring reads it
             except Exception:
                 pass  # ledger is best-effort; never stop the runner
             try:

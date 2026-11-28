@@ -545,6 +545,13 @@ def news_from_headline_cues(cues):
     return EngineEvidence("news", reason="Verified news evidence unavailable")
 
 
+# validated_trade_flow = exchange trade-side evidence. ledger_gated_lean = owner-approved (28 Nov 2026):
+# the server's futures price+premium lean may vote ONLY while its own measured hit-rate passes the
+# server evidence gate (>= VOTE_MIN_N scored samples and >= VOTE_MIN_RATE %); the phone builds it only then.
+FUTURES_DIRECTION_BASES = ("validated_trade_flow", "ledger_gated_lean")
+LEDGER_GATED_MAX_AGE_SECONDS = 290   # server refreshes the lean every 5 min; display window is 300 s
+
+
 def futures_from_component(component):
     """Fail-closed futures adapter: OI/price/volume are context, not traded-side proof.
 
@@ -560,10 +567,10 @@ def futures_from_component(component):
     timestamp = component.get("timestamp")
     if type(timestamp) not in (int, float) or not isfinite(timestamp) or timestamp <= 0:
         return EngineEvidence("futures", reason="Futures timestamp unavailable")
-    if component.get("direction_basis") != "validated_trade_flow":
+    if component.get("direction_basis") not in FUTURES_DIRECTION_BASES:
         return EngineEvidence("futures", reason="Futures OI/price build-up is inferred, not validated directional flow")
     return measured_directional_evidence(
-        "futures", component, required_basis="validated_trade_flow")
+        "futures", component, required_basis=component["direction_basis"])
 
 
 def deduplicate_news_context(headlines, *, symbol, now, max_age_seconds=600):
@@ -792,7 +799,8 @@ class ContextualFiveEngineCache:
                     or component.get("mapping_verified") is not True):
                 continue
             stamp=component.get("timestamp")
-            if type(stamp) not in (int,float) or not isfinite(stamp) or not 0<=now-stamp<=90:
+            limit=LEDGER_GATED_MAX_AGE_SECONDS if component.get("direction_basis")=="ledger_gated_lean" else 90
+            if type(stamp) not in (int,float) or not isfinite(stamp) or not 0<=now-stamp<=limit:
                 continue
             try:
                 expiry=component.get("expiry")
